@@ -2,6 +2,7 @@
 using B2Net.Http.RequestGenerators;
 using B2Net.Models;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -69,17 +70,34 @@ namespace B2Net
             var response = _client.SendAsync(request, cancelToken).Result;
             
             return await ResponseParser.ParseResponse<B2UploadPart>(response, _api);
-        }
+		}
 
-	    /// <summary>
-	    /// Downloads one file by providing the name of the bucket and the name of the file.
-	    /// </summary>
-	    /// <param name="fileId"></param>
-	    /// <param name="fileName"></param>
-	    /// <param name="bucketId"></param>
-	    /// <param name="cancelToken"></param>
-	    /// <returns></returns>
-	    public async Task<B2File> FinishLargeFile(string fileId, string[] partSHA1Array, CancellationToken cancelToken = default(CancellationToken)) {
+		/// <summary>
+		/// Upload one part of an already started large file upload.
+		/// </summary>
+		/// <param name="fileData"></param>
+		/// <param name="fileName"></param>
+		/// <param name="bucketId"></param>
+		/// <param name="cancelToken"></param>
+		/// <returns></returns>
+		public async Task<B2UploadPart> UploadPart(Stream fileData, int partNumber, B2UploadPartUrl uploadPartUrl, CancellationToken cancelToken = default(CancellationToken))
+		{
+			var request = LargeFileRequestGenerators.Upload(_options, fileData, partNumber, uploadPartUrl);
+
+			var response = _client.SendAsync(request, cancelToken).Result;
+
+			return await ResponseParser.ParseResponse<B2UploadPart>(response, _api);
+		}
+
+		/// <summary>
+		/// Downloads one file by providing the name of the bucket and the name of the file.
+		/// </summary>
+		/// <param name="fileId"></param>
+		/// <param name="fileName"></param>
+		/// <param name="bucketId"></param>
+		/// <param name="cancelToken"></param>
+		/// <returns></returns>
+		public async Task<B2File> FinishLargeFile(string fileId, string[] partSHA1Array, CancellationToken cancelToken = default(CancellationToken)) {
 	        var request = LargeFileRequestGenerators.Finish(_options, fileId, partSHA1Array);
 
 	        // Send the request

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -77,9 +78,47 @@ namespace B2Net.Http.RequestGenerators
             request.Content.Headers.ContentLength = fileData.Length;
 
             return request;
-        }
+		}
 
-        public static HttpRequestMessage GetUploadPartUrl(B2Options options, string fileId) {
+		/// <summary>
+		/// Upload a file to B2. This method will calculate the SHA1 checksum before sending any data.
+		/// </summary>
+		/// <param name="options"></param>
+		/// <param name="uploadUrl"></param>
+		/// <param name="fileData"></param>
+		/// <param name="fileName"></param>
+		/// <param name="fileInfo"></param>
+		/// <returns></returns>
+		public static HttpRequestMessage Upload(B2Options options, Stream fileData, int partNumber, B2UploadPartUrl uploadPartUrl)
+		{
+			if (partNumber < 1 || partNumber > 10000)
+			{
+				throw new Exception("Part number must be between 1 and 10,000");
+			}
+
+			var uri = new Uri(uploadPartUrl.UploadUrl);
+			var request = new HttpRequestMessage()
+			{
+				Method = HttpMethod.Post,
+				RequestUri = uri,
+				Content = new StreamContent(fileData)
+			};
+
+			// Get the file checksum
+			string hash = Utilities.GetSHA1Hash(fileData);
+
+			// Add headers
+			request.Headers.TryAddWithoutValidation("Authorization", uploadPartUrl.AuthorizationToken);
+			request.Headers.Add("X-Bz-Part-Number", partNumber.ToString());
+			request.Headers.Add("X-Bz-Content-Sha1", hash);
+			request.Content.Headers.ContentLength = fileData.Length;
+
+			fileData.Position = 0;
+
+			return request;
+		}
+
+		public static HttpRequestMessage GetUploadPartUrl(B2Options options, string fileId) {
             return BaseRequestGenerator.PostRequest(Endpoints.GetPartUrl, JsonConvert.SerializeObject(new { fileId }), options);
         }
 

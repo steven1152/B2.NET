@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -44,6 +45,15 @@ namespace B2Net {
 
 		public static string GetSHA1Hash(byte[] fileData) {
 			using (var sha1 = SHA1.Create()) {
+				return HexStringFromBytes(sha1.ComputeHash(fileData));
+			}
+		}
+
+		public static string GetSHA1Hash(Stream fileData)
+		{
+			using (var sha1 = SHA1.Create())
+			{
+				fileData.Position = 0;
 				return HexStringFromBytes(sha1.ComputeHash(fileData));
 			}
 		}
