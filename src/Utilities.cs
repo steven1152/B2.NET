@@ -89,7 +89,7 @@ namespace B2Net {
 			if (str == "/") {
 				return str;
 			}
-			return Uri.EscapeDataString(str);
+			return Uri.EscapeDataString(str).Replace("%2F", "/");
 		}
 
 		public static string b2UrlDecode(this string str) {

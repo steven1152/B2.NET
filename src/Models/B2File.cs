@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace B2Net.Models {
 	public class B2File {
@@ -9,6 +10,7 @@ namespace B2Net.Models {
 		public long Size { get; set; }
 		public string UploadTimestamp { get; set; }
 		public byte[] FileData { get; set; }
+		public System.Net.Http.HttpContent Content { get; set; }
 		// Uploaded File Response
 		public string ContentLength { get; set; }
 		public string ContentSHA1 { get; set; }

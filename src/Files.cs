@@ -204,17 +204,17 @@ namespace B2Net
         /// <param name="endBytes"></param>
         /// <param name="cancelToken"></param>
         /// <returns></returns>
-	    public async Task<B2File> DownloadByName(string fileName, string bucketName, int startByte, int endByte,
-	        CancellationToken cancelToken = default(CancellationToken)) {
+	    public async Task<B2File> DownloadByName(string fileName, string bucketName, int startByte, int endByte, bool useStream = false,
+			CancellationToken cancelToken = default(CancellationToken)) {
             // Are we searching by name or id?
             HttpRequestMessage request;
             request = FileDownloadRequestGenerators.DownloadByName(_options, bucketName, fileName, $"{startByte}-{endByte}");
 
             // Send the download request
-            var response = await _client.SendAsync(request, cancelToken);
+            var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancelToken);
 
             // Create B2File from response
-            return await ParseDownloadResponse(response);
+            return await ParseDownloadResponse(response, useStream);
         }
 
         /// <summary>
@@ -225,16 +225,16 @@ namespace B2Net
         /// <param name="bucketId"></param>
         /// <param name="cancelToken"></param>
         /// <returns></returns>
-        public async Task<B2File> DownloadByName(string fileName, string bucketName, CancellationToken cancelToken = default(CancellationToken)) {
+        public async Task<B2File> DownloadByName(string fileName, string bucketName, bool useStream = false, CancellationToken cancelToken = default(CancellationToken)) {
 			// Are we searching by name or id?
 			HttpRequestMessage request;
 			request = FileDownloadRequestGenerators.DownloadByName(_options, bucketName, fileName);
 
 			// Send the download request
-			var response = await _client.SendAsync(request, cancelToken);
+			var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancelToken);
 
 			// Create B2File from response
-			return await ParseDownloadResponse(response);
+			return await ParseDownloadResponse(response, useStream);
 	    }
 
 	    /// <summary>
@@ -243,16 +243,16 @@ namespace B2Net
 	    /// <param name="fileId"></param>
 	    /// <param name="cancelToken"></param>
 	    /// <returns></returns>
-	    public async Task<B2File> DownloadById(string fileId, int startByte, int endByte, CancellationToken cancelToken = default(CancellationToken)) {
+	    public async Task<B2File> DownloadById(string fileId, int startByte, int endByte, bool useStream = false, CancellationToken cancelToken = default(CancellationToken)) {
 	        // Are we searching by name or id?
 	        HttpRequestMessage request;
 	        request = FileDownloadRequestGenerators.DownloadById(_options, fileId, $"{startByte}-{endByte}");
 
 	        // Send the download request
-	        var response = await _client.SendAsync(request, cancelToken);
+	        var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancelToken);
 
 	        // Create B2File from response
-	        return await ParseDownloadResponse(response);
+	        return await ParseDownloadResponse(response, useStream);
 	    }
 
 	    /// <summary>
@@ -261,16 +261,16 @@ namespace B2Net
 	    /// <param name="fileId"></param>
 	    /// <param name="cancelToken"></param>
 	    /// <returns></returns>
-	    public async Task<B2File> DownloadById(string fileId, CancellationToken cancelToken = default(CancellationToken)) {
+	    public async Task<B2File> DownloadById(string fileId, bool useStream = false, CancellationToken cancelToken = default(CancellationToken)) {
 	        // Are we searching by name or id?
 	        HttpRequestMessage request;
 	        request = FileDownloadRequestGenerators.DownloadById(_options, fileId);
 
 	        // Send the download request
-	        var response = await _client.SendAsync(request, cancelToken);
+	        var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancelToken);
 
 	        // Create B2File from response
-	        return await ParseDownloadResponse(response);
+	        return await ParseDownloadResponse(response, useStream);
 	    }
 
         /// <summary>
@@ -342,7 +342,7 @@ namespace B2Net
 			return await ResponseParser.ParseResponse<B2DownloadAuthorization>(response, _api);
 		}
 
-		private async Task<B2File> ParseDownloadResponse(HttpResponseMessage response) {
+		private async Task<B2File> ParseDownloadResponse(HttpResponseMessage response, bool useStream = false) {
 			Utilities.CheckForErrors(response, _api);
 
 			var file = new B2File();
@@ -372,7 +372,14 @@ namespace B2Net
             if (response.Content.Headers.ContentLength.HasValue) {
                 file.Size = response.Content.Headers.ContentLength.Value;
             }
-            file.FileData = await response.Content.ReadAsByteArrayAsync();
+			if (useStream)
+			{
+				file.Content = response.Content;
+			}
+			else
+			{
+				file.FileData = await response.Content.ReadAsByteArrayAsync();
+			}
 
 			return await Task.FromResult(file);
 		}

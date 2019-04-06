@@ -6,6 +6,7 @@ namespace B2Net.Models {
 		public string KeyId { get; set; }
 		public string ApplicationKey { get; set; }
 		public string BucketId { get; set; }
+		public string BucketName { get; set; }
 		/// <summary>
 		/// Setting this to true will use this bucket by default for all
 		/// api calls made from this client. Useful if your app will
