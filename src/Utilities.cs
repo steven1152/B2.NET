@@ -51,10 +51,17 @@ namespace B2Net {
 
 		public static string GetSHA1Hash(Stream fileData)
 		{
-			using (var sha1 = SHA1.Create())
+			try
+			{
+				using (var sha1 = SHA1.Create())
+				{
+					fileData.Position = 0;
+					return HexStringFromBytes(sha1.ComputeHash(fileData));
+				}
+			}
+			finally
 			{
 				fileData.Position = 0;
-				return HexStringFromBytes(sha1.ComputeHash(fileData));
 			}
 		}
 

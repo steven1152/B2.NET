@@ -2,6 +2,7 @@
 using B2Net.Models;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -127,33 +128,6 @@ namespace B2Net
         }
 
         /// <summary>
-        /// DEPRECATED: This method has been deprecated in favor of the Upload that takes an UploadUrl parameter.
-        /// The other Upload method is the preferred, and more efficient way, of uploading to B2.
-        /// </summary>
-        /// <param name="fileData"></param>
-        /// <param name="fileName"></param>
-        /// <param name="bucketId"></param>
-        /// <param name="cancelToken"></param>
-        /// <returns></returns>
-        public async Task<B2File> Upload(byte[] fileData, string fileName, string bucketId = "", Dictionary<string, string> fileInfo = null, CancellationToken cancelToken = default(CancellationToken)) {
-            var operationalBucketId = Utilities.DetermineBucketId(_options, bucketId);
-
-            // Get the upload url for this file
-            var uploadUrlRequest = FileUploadRequestGenerators.GetUploadUrl(_options, operationalBucketId);
-            var uploadUrlResponse = _client.SendAsync(uploadUrlRequest, cancelToken).Result;
-            var uploadUrlData = await uploadUrlResponse.Content.ReadAsStringAsync();
-            var uploadUrlObject = JsonConvert.DeserializeObject<B2UploadUrl>(uploadUrlData);
-            // Set the upload auth token
-            _options.UploadAuthorizationToken = uploadUrlObject.AuthorizationToken;
-
-            // Now we can upload the file
-            var requestMessage = FileUploadRequestGenerators.Upload(_options, uploadUrlObject.UploadUrl, fileData, fileName, fileInfo);
-            var response = await _client.SendAsync(requestMessage, cancelToken);
-
-            return await ResponseParser.ParseResponse<B2File>(response, _api);
-        }
-
-        /// <summary>
         /// Uploads one file to B2, returning its unique file ID. Filename will be URL Encoded.
         /// </summary>
         /// <param name="fileData"></param>
@@ -181,30 +155,69 @@ namespace B2Net
 	        // Now we can upload the file
 	        var requestMessage = FileUploadRequestGenerators.Upload(_options, uploadUrl.UploadUrl, fileData, fileName, fileInfo);
 
-	        var response = await _client.SendAsync(requestMessage, cancelToken);
-            // Auto retry
-            if (autoRetry && (
-                    response.StatusCode == (HttpStatusCode)429 ||
-                    response.StatusCode == HttpStatusCode.RequestTimeout ||
-                    response.StatusCode == HttpStatusCode.ServiceUnavailable)) {
-                Task.Delay(1000, cancelToken).Wait(cancelToken);
-                response = await _client.SendAsync(requestMessage, cancelToken);
-            }
+			return await Upload(requestMessage, autoRetry, cancelToken);
+		}
 
-	        return await ResponseParser.ParseResponse<B2File>(response, _api);
-	    }
+		/// <summary>
+		/// Uploads one file to B2, returning its unique file ID. Filename will be URL Encoded.
+		/// </summary>
+		/// <param name="fileData"></param>
+		/// <param name="fileName"></param>
+		/// <param name="bucketId"></param>
+		/// <param name="cancelToken"></param>
+		/// <returns></returns>
+		public async Task<B2File> Upload(Stream fileData, string fileName, B2UploadUrl uploadUrl, string bucketId = "", Dictionary<string, string> fileInfo = null, CancellationToken cancelToken = default(CancellationToken))
+		{
+			return await Upload(fileData, fileName, uploadUrl, false, bucketId, fileInfo, cancelToken);
+		}
 
-        /// <summary>
-        /// Downloads a file part by providing the name of the bucket and the name and byte range of the file.
-        /// For use with the Larg File API.
-        /// </summary>
-        /// <param name="fileName"></param>
-        /// <param name="bucketName"></param>
-        /// <param name="startBytes"></param>
-        /// <param name="endBytes"></param>
-        /// <param name="cancelToken"></param>
-        /// <returns></returns>
-	    public async Task<B2File> DownloadByName(string fileName, string bucketName, int startByte, int endByte, bool useStream = false,
+		/// <summary>
+		/// Uploads one file to B2, returning its unique file ID. Filename will be URL Encoded. If auto retry
+		/// is set true it will retry a failed upload once after 1 second.
+		/// </summary>
+		/// <param name="fileData"></param>
+		/// <param name="fileName"></param>
+		/// <param name="uploadUrl"></param>
+		/// <param name="bucketId"></param>
+		/// <param name="autoRetry">Retry a failed upload one time after waiting for 1 second.</param>
+		/// <param name="fileInfo"></param>
+		/// <param name="cancelToken"></param>
+		/// <returns></returns>
+		public async Task<B2File> Upload(Stream fileData, string fileName, B2UploadUrl uploadUrl, bool autoRetry, string bucketId = "", Dictionary<string, string> fileInfo = null, CancellationToken cancelToken = default(CancellationToken))
+		{
+			// Now we can upload the file
+			var requestMessage = FileUploadRequestGenerators.Upload(_options, uploadUrl.UploadUrl, fileData, fileName, fileInfo);
+
+			return await Upload(requestMessage, autoRetry, cancelToken);
+		}
+
+		private async Task<B2File> Upload(HttpRequestMessage requestMessage, bool autoRetry, CancellationToken cancelToken = default(CancellationToken))
+		{
+			var response = await _client.SendAsync(requestMessage, cancelToken);
+			// Auto retry
+			if (autoRetry && (
+					response.StatusCode == (HttpStatusCode)429 ||
+					response.StatusCode == HttpStatusCode.RequestTimeout ||
+					response.StatusCode == HttpStatusCode.ServiceUnavailable))
+			{
+				Task.Delay(1000, cancelToken).Wait(cancelToken);
+				response = await _client.SendAsync(requestMessage, cancelToken);
+			}
+
+			return await ResponseParser.ParseResponse<B2File>(response, _api);
+		}
+
+		/// <summary>
+		/// Downloads a file part by providing the name of the bucket and the name and byte range of the file.
+		/// For use with the Larg File API.
+		/// </summary>
+		/// <param name="fileName"></param>
+		/// <param name="bucketName"></param>
+		/// <param name="startBytes"></param>
+		/// <param name="endBytes"></param>
+		/// <param name="cancelToken"></param>
+		/// <returns></returns>
+		public async Task<B2File> DownloadByName(string fileName, string bucketName, int startByte, int endByte, bool useStream = false,
 			CancellationToken cancelToken = default(CancellationToken)) {
             // Are we searching by name or id?
             HttpRequestMessage request;
