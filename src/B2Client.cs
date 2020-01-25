@@ -65,8 +65,8 @@ namespace B2Net {
         /// Authorize against the B2 storage service. Requires that AccountId and ApplicationKey on the options object be set.
         /// </summary>
         /// <returns>B2Options containing the download url, new api url, and authorization token.</returns>
-        public async Task<B2Options> Authorize(CancellationToken cancelToken = default(CancellationToken)) {
-	        return Authorize(_options);
+        public Task<B2Options> Authorize(CancellationToken cancelToken = default(CancellationToken)) {
+	        return Task.FromResult(Authorize(_options));
         }
 
 	    public static B2Options Authorize(string accountId, string applicationkey, string keyId = "") {
