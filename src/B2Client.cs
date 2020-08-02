@@ -30,7 +30,7 @@ namespace B2Net {
                 ApplicationKey = applicationkey,
 				RequestTimeout = requestTimeout
 	        };
-            _options = Authorize(_options);
+            _options = Authorize(_options).Result;
 
             Buckets = new Buckets(_options);
 	        Files = new Files(_options);
@@ -50,7 +50,7 @@ namespace B2Net {
 			  ApplicationKey = applicationkey,
 			  RequestTimeout = requestTimeout
 		  };
-		  _options = Authorize(_options);
+		  _options = Authorize(_options).Result;
 
 		  Buckets = new Buckets(_options);
 		  Files = new Files(_options);
@@ -65,12 +65,12 @@ namespace B2Net {
         /// Authorize against the B2 storage service. Requires that AccountId and ApplicationKey on the options object be set.
         /// </summary>
         /// <returns>B2Options containing the download url, new api url, and authorization token.</returns>
-        public Task<B2Options> Authorize(CancellationToken cancelToken = default(CancellationToken)) {
-	        return Task.FromResult(Authorize(_options));
+        public async Task<B2Options> Authorize(CancellationToken cancelToken = default(CancellationToken)) {
+	        return await Authorize(_options);
         }
 
-	    public static B2Options Authorize(string accountId, string applicationkey, string keyId = "") {
-	        return Authorize(new B2Options() {AccountId = accountId, ApplicationKey = applicationkey, KeyId = keyId});
+	    public static async Task<B2Options> Authorize(string accountId, string applicationkey, string keyId = "") {
+	        return await Authorize(new B2Options() {AccountId = accountId, ApplicationKey = applicationkey, KeyId = keyId});
 	    }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace B2Net {
         /// </summary>
         /// <param name="options"></param>
         /// <returns></returns>
-	    public static B2Options Authorize(B2Options options) {
+	    public static async Task<B2Options> Authorize(B2Options options) {
             var client = HttpClientFactory.CreateHttpClient(options.RequestTimeout);
 
 	        if (!string.IsNullOrEmpty(options.KeyId) && string.IsNullOrEmpty(options.AccountId)) {
@@ -86,9 +86,9 @@ namespace B2Net {
 	        }
 
             var requestMessage = AuthRequestGenerator.Authorize(options);
-            var response = client.SendAsync(requestMessage).Result;
+            var response = await client.SendAsync(requestMessage);
 
-            var jsonResponse = response.Content.ReadAsStringAsync().Result;
+            var jsonResponse = await response.Content.ReadAsStringAsync();
             if (response.IsSuccessStatusCode) {
                 var authResponse = JsonConvert.DeserializeObject<B2AuthResponse>(jsonResponse);
 
